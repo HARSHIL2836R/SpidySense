@@ -4,6 +4,8 @@
 #include <vector>
 #include<cmath>
 #include<map>
+#include <utility>
+#include<unordered_map>
 #define ll long long 
 
 // -----------------------------------------------------------------------------
@@ -14,42 +16,48 @@
 
 // OPTIONAL: Add your helper functions and data structures here
 
+struct hash_first {
+    template <class T1, class T2>
+    std::size_t operator()(const std::pair<T1, T2>& p) const {
+        auto hash1 = std::hash<T1>{}(p.first);
+        return hash1; 
+    }
+};
 
 //for submission 2
-std::pair<ll,ll> hashing(std::vector<int> &text, ll len){
+std::pair<ll,ll> hashing(std::vector<int> text, ll len){
     ll prime = 1.0e9+7;
     // std::cout<<"prime: "<<prime<<std::endl;
     ll x = 1;
     ll hashed = 0;
-    for(ll i =0; i<len; i++,x=(x%prime*33)){
+    for(ll i =0; i<len; i++,x=((x%prime)*33)){
        
-        hashed = (hashed%prime+ (((x%prime)*text[i]) % prime))%prime;
+        hashed = (hashed%prime+ (((x%prime)*text[len-i-1]) % prime))%prime;
     }
-    x=x%prime;
     x/=33;
-    
     hashed=hashed%prime;
     return {hashed, x};
 }
 
 //for submission 1
-void calculate_hashes(std::map<ll,ll> &hash_set, std::vector<int> &text, ll len){
+void calculate_hashes(std::unordered_multimap<ll,ll> &hash_set, std::vector<int> &text, ll len){
     ll prime = 1.0e9+7;
     ll x = 1;
     ll hashed = 0;
-    for(ll i =0; i<len; i++,x = (x%prime*33)%prime){
+    for(ll i =0; i<len; i++,x = ((x%prime)*33)){
        
-        hashed= (hashed%prime+(((x%prime)*text[i]) % prime))%prime;
+        hashed= (hashed%prime+(((x%prime)*text[len-i-1]) % prime))%prime;
+
     }
     hashed = hashed % prime;
-    x=x%prime;
     x/=33;
     
-    hash_set[hashed]=0;
+    hash_set.insert({hashed,0});
     for(int i = 1; i<=text.size()-len; i++){
-        hashed = ((((hashed - text[i-1])/33 + prime) % prime) + ((x%prime)*text[i+len-1]%prime )%prime)%prime;
-        if(hash_set.find(hashed)==hash_set.end())
-        hash_set[hashed]=i;
+        hashed = (hashed - (text[i - 1] * x % prime) + prime) % prime;
+        hashed = (hashed * 33 + text[i + len - 1]) % prime;
+    
+        hash_set.insert({hashed,i});
     }
 }
 
@@ -58,8 +66,8 @@ std::array<int,5> rolling_hash(std:: vector<int> &submission1, std::vector<int> 
 
     
         for(int match_len =10; match_len < std::min(submission1.size(),submission2.size()); match_len++){
-            std::map<ll,ll>hash_set;
-
+            
+            std::unordered_multimap<ll,ll> hash_set;
             if(match_len > submission1.size() || match_len > submission2.size()){
                 return {0,0,0,0,0};
              }
@@ -68,19 +76,36 @@ std::array<int,5> rolling_hash(std:: vector<int> &submission1, std::vector<int> 
             std::pair<ll,ll> v = hashing(submission2,match_len);
             ll hashed = v.first, x= v.second;
             ll prime= 1.0e9+7;
-            if(hash_set.find(hashed) != hash_set.end()){
-                
-                    std::cout << "Match found : len1 "<<hashed<<" "<<match_len<<" "<<0<<'\n';
-                    std::cout << "Key "<<hash_set[hashed]<<'\n';
-
+            auto it = hash_set.find(hashed);
+            if( it != hash_set.end()){
+                    std::cout << "Match found :"<<" "<<match_len<<" "<<hashed<<" "<<it->first<<'\n';
+                    std::cout << "sub1 idx"<<it->second<<"sub2 idx "<<0<<'\n';
+                    // std::cout << "Matched elements sub1: \n";
+                    // for(int i=it->second; i<it->second+match_len; i++){
+                    //     std::cout << submission1[i]<<" ";
+                    // }
+                    hash_set.erase(it);
                 }
 
             for(int i = 1; i<submission2.size()-match_len; i++){
-                hashed = (((hashed - submission2[i-1])/33 + prime) % prime);
-                hashed = (hashed + ((x%prime)*submission2[i+match_len-1] )%prime) %prime;
+                hashed = (hashed - (submission2[i - 1] * x % prime) + prime) % prime;
+                hashed = (hashed * 33 + submission2[i + match_len - 1]) % prime;
                 hashed=hashed%prime;
-                if(hash_set.find(hashed) != hash_set.end()){
-                    std::cout << "Match found : len2 "<<match_len<<" "<<i<<'\n';
+                if(i<=10 && match_len==10)std::cerr<< "i: "<<i<<" "<<hashed<<'\n';
+                 it = hash_set.find(hashed);
+                if( it != hash_set.end()){
+                    std::cout << "Match found :"<<" "<<match_len<<" "<<i<<" "<<hashed<<" "<<it->first<<'\n';
+                    std::cout << "sub1 idx"<<it->second<<"sub2 idx "<<i<<'\n';
+                    // std::cout << "Matched elements sub2: \n";
+                    // for(int k=i; k<i+match_len; k++){
+                    //     std::cout << submission2[k]<<" ";
+                    // }
+                    // std::cout << "Matched elements sub1: \n";
+                    // for(int k=it->second; k<it->second+match_len; k++){
+                    //     std::cout << submission1[k]<<" ";
+                    // }
+
+                    hash_set.erase(it);
                 }
             }
         }
@@ -91,10 +116,13 @@ return {0,0,0,0,0};
 std::array<int, 5> match_submissions(std::vector<int> &submission1, 
         std::vector<int> &submission2) {
     // TODO: Write your code here
-
+std::vector<int> v={6,6,9,9,9,9,9,8,10,202};
+std::vector<int> v2={143, 6, 43 ,143 ,9 ,9 ,9 ,8 ,10 ,202};
+    std::cout << "v "<<hashing(v,10).first<<'\n';
+    std::cout <<"v2 "<< hashing(v2,10).first<<'\n';
     std::cout << submission1.size()<<" "<<submission2.size()<<'\n';
-    for(auto i : submission1){
-        std::cerr << i<<" ";
+    for(int i=0; i<submission1.size(); i++){
+        std::cerr <<"("<<i<<","<<submission1[i]<<" ";
     }
     std::cerr << '\n';
     std::cerr<< '\n';
