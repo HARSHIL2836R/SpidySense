@@ -11,10 +11,13 @@
 
 // OPTIONAL: Add your helper functions and data structures here
 
+
 std::array<int, 5> match_submissions(std::vector<int> &submission1, 
         std::vector<int> &submission2) {
     // TODO: Write your code here
+
     std::array<int, 5> result = {0, 0, 0, 0, 0};
+    std::cout << submission1.size()<<" "<<submission2.size()<<'\n';
     return result; // dummy return
     // End TODO
 }
